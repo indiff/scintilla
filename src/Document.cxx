@@ -833,15 +833,9 @@ Sci::Position Document::MovePositionOutsideChar(Sci::Position pos, Sci::Position
 				// Else invalid UTF-8 so return position of isolated trail byte
 			}
 		} else {
-			// Anchor DBCS calculations at start of line because start of line can
-			// not be a DBCS trail byte.
-			const Sci::Position posStartLine = LineStartPosition(pos);
-			if (pos == posStartLine)
-				return pos;
-
 			// Step back until a non-lead-byte is found.
 			Sci::Position posCheck = pos;
-			while ((posCheck > posStartLine) && IsDBCSLeadByteNoExcept(cb.CharAt(posCheck-1)))
+			while ((posCheck > 0) && IsDBCSLeadByteNoExcept(cb.CharAt(posCheck-1)))
 				posCheck--;
 
 			// Check from known start of character.
@@ -916,14 +910,11 @@ Sci::Position Document::NextPosition(Sci::Position pos, int moveDir) const noexc
 				if (pos > cb.Length())
 					pos = cb.Length();
 			} else {
-				// Anchor DBCS calculations at start of line because start of line can
-				// not be a DBCS trail byte.
-				const Sci::Position posStartLine = LineStartPosition(pos);
-				// See http://msdn.microsoft.com/en-us/library/cc194792%28v=MSDN.10%29.aspx
-				// http://msdn.microsoft.com/en-us/library/cc194790.aspx
-				if ((pos - 1) <= posStartLine) {
-					return pos - 1;
-				} else if (IsDBCSLeadByteNoExcept(cb.CharAt(pos - 1))) {
+				// How to Go Backward in a DBCS String
+				// https://msdn.microsoft.com/en-us/library/cc194792.aspx
+				// DBCS-Enabled Programs vs. Non-DBCS-Enabled Programs
+				// https://msdn.microsoft.com/en-us/library/cc194790.aspx
+				if (IsDBCSLeadByteNoExcept(cb.CharAt(pos - 1))) {
 					// Should actually be trail byte
 					if (IsDBCSDualByteAt(pos - 2)) {
 						return pos - 2;
@@ -934,7 +925,7 @@ Sci::Position Document::NextPosition(Sci::Position pos, int moveDir) const noexc
 				} else {
 					// Otherwise, step back until a non-lead-byte is found.
 					Sci::Position posTemp = pos - 1;
-					while (posStartLine <= --posTemp && IsDBCSLeadByteNoExcept(cb.CharAt(posTemp)))
+					while (--posTemp >= 0 && IsDBCSLeadByteNoExcept(cb.CharAt(posTemp)))
 						;
 					// Now posTemp+1 must point to the beginning of a character,
 					// so figure out whether we went back an even or an odd
@@ -2855,7 +2846,7 @@ Sci::Position Document::BraceMatch(Sci::Position position, Sci::Position /*maxRe
 	const unsigned char chBrace = CharAt(position);
 	const unsigned char chSeek = BraceOpposite(chBrace);
 	if (chSeek == '\0')
-		return - 1;
+		return -1;
 	const int styBrace = StyleIndexAt(position);
 	int direction = -1;
 	if (chBrace == '(' || chBrace == '[' || chBrace == '{' || chBrace == '<')
@@ -2863,31 +2854,25 @@ Sci::Position Document::BraceMatch(Sci::Position position, Sci::Position /*maxRe
 	int depth = 1;
 	position = useStartPos ? startPos : NextPosition(position, direction);
 
-	// Avoid complex NextPosition call for bytes that may not cause incorrect match
+	// Avoid using MovePositionOutsideChar to check DBCS trail byte
 	unsigned char maxSafeChar = 0xff;
 	if (dbcsCodePage != 0 && dbcsCodePage != CpUtf8) {
-		maxSafeChar = (direction >= 0) ? 0x80 : DBCSMinTrailByte() - 1;
+		maxSafeChar = DBCSMinTrailByte() - 1;
 	}
 
 	while ((position >= 0) && (position < LengthNoExcept())) {
 		const unsigned char chAtPos = CharAt(position);
 		if (chAtPos == chBrace || chAtPos == chSeek) {
-			if ((position > GetEndStyled()) || (StyleIndexAt(position) == styBrace)) {
+			if (((position > GetEndStyled()) || (StyleIndexAt(position) == styBrace)) &&
+				(chAtPos <= maxSafeChar || position == MovePositionOutsideChar(position, direction, false))) {
 				depth += (chAtPos == chBrace) ? 1 : -1;
 				if (depth == 0)
 					return position;
 			}
 		}
-		if (chAtPos <= maxSafeChar) {
-			position += direction;
-		} else {
-			const Sci::Position positionBeforeMove = position;
-			position = NextPosition(position, direction);
-			if (position == positionBeforeMove)
-				break;
-		}
+		position += direction;
 	}
-	return - 1;
+	return -1;
 }
 
 /**
