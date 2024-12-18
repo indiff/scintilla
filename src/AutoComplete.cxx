@@ -93,7 +93,7 @@ bool AutoComplete::IsFillUpChar(char ch) const noexcept {
 	return ch && (fillUpChars.find(ch) != std::string::npos);
 }
 
-void AutoComplete::SetSeparator(char separator_) {
+void AutoComplete::SetSeparator(char separator_) noexcept {
 	separator = separator_;
 }
 
@@ -101,7 +101,7 @@ char AutoComplete::GetSeparator() const noexcept {
 	return separator;
 }
 
-void AutoComplete::SetTypesep(char separator_) {
+void AutoComplete::SetTypesep(char separator_) noexcept {
 	typesep = separator_;
 }
 
@@ -163,21 +163,24 @@ struct Sorter {
 	}
 };
 
+void FillSortMatrix(std::vector<int> &sortMatrix, int itemCount) {
+	sortMatrix.clear();
+	for (int i = 0; i < itemCount; i++) {
+		sortMatrix.push_back(i);
+	}
+}
+
 }
 
 void AutoComplete::SetList(const char *list) {
 	if (autoSort == Ordering::PreSorted) {
 		lb->SetList(list, separator, typesep);
-		sortMatrix.clear();
-		for (int i = 0; i < lb->Length(); ++i)
-			sortMatrix.push_back(i);
+		FillSortMatrix(sortMatrix, lb->Length());
 		return;
 	}
 
 	const Sorter IndexSort(this, list);
-	sortMatrix.clear();
-	for (int i = 0; i < static_cast<int>(IndexSort.indices.size()) / 2; ++i)
-		sortMatrix.push_back(i);
+	FillSortMatrix(sortMatrix, static_cast<int>(IndexSort.indices.size() / 2));
 	std::sort(sortMatrix.begin(), sortMatrix.end(), IndexSort);
 	if (autoSort == Ordering::Custom || sortMatrix.size() < 2) {
 		lb->SetList(list, separator, typesep);
@@ -188,6 +191,7 @@ void AutoComplete::SetList(const char *list) {
 	std::string sortedList;
 	for (size_t i = 0; i < sortMatrix.size(); ++i) {
 		const unsigned index = sortMatrix[i] * 2;
+		sortMatrix[i] = static_cast<int>(i);
 		// word length include trailing typesep and separator
 		const int wordLen = IndexSort.indices[index + 2] - IndexSort.indices[index];
 		const std::string_view item(list + IndexSort.indices[index], wordLen);
@@ -204,8 +208,6 @@ void AutoComplete::SetList(const char *list) {
 			}
 		}
 	}
-	for (int i = 0; i < static_cast<int>(sortMatrix.size()); ++i)
-		sortMatrix[i] = i;
 	lb->SetList(sortedList.c_str(), separator, typesep);
 }
 
@@ -297,7 +299,7 @@ void AutoComplete::Select(const char *word) {
 		if (autoSort == Ordering::Custom) {
 			// Check for a logically earlier match
 			for (int i = location + 1; i <= end; ++i) {
-				std::string item = lb->GetValue(sortMatrix[i]);
+				const std::string item = lb->GetValue(sortMatrix[i]);
 				if (CompareNCaseInsensitive(word, item.c_str(), lenWord))
 					break;
 				if (sortMatrix[i] < sortMatrix[location] && !strncmp(word, item.c_str(), lenWord))
