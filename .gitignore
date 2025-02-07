@@ -1,3 +1,4 @@
 /.hg
 /win32/Intermediates
 /win32/Scintilla.vcxproj.user
+/.vscode
