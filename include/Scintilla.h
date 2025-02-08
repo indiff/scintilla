@@ -1468,7 +1468,6 @@ struct SearchResultMarkings {
 	intptr_t _length;
 	SearchResultMarkingLine *_markings;
 };
-
 #ifdef INCLUDE_DEPRECATED_FEATURES
 
 #define SCI_SETKEYSUNICODE 2521
