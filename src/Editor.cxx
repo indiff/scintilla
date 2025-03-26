@@ -106,15 +106,7 @@ constexpr bool IsLastStep(const DocModification &mh) noexcept {
 	    && ((mh.modificationType & finalMask) == finalMask);
 }
 
-}
-
-Timer::Timer() noexcept :
-		ticking(false), ticksToWait(0), tickerID{} {}
-
-Idler::Idler() noexcept :
-		state(false), idlerID(nullptr) {}
-
-static constexpr bool IsAllSpacesOrTabs(std::string_view sv) noexcept {
+constexpr bool IsAllSpacesOrTabs(std::string_view sv) noexcept {
 	for (const char ch : sv) {
 		// This is safe because IsSpaceOrTab() will return false for null terminators
 		if (!IsSpaceOrTab(ch))
@@ -122,6 +114,14 @@ static constexpr bool IsAllSpacesOrTabs(std::string_view sv) noexcept {
 	}
 	return true;
 }
+
+}
+
+Timer::Timer() noexcept :
+		ticking(false), ticksToWait(0), tickerID{} {}
+
+Idler::Idler() noexcept :
+		state(false), idlerID(nullptr) {}
 
 Editor::Editor() : durationWrapOneByte(0.000001, 0.00000001, 0.00001) {
 	ctrlID = 0;
@@ -516,10 +516,14 @@ void Editor::RedrawSelMargin(Sci::Line line, bool allAfter) {
 }
 
 PRectangle Editor::RectangleFromRange(Range r, int overlap) {
-	const Sci::Line minLine = pcs->DisplayFromDoc(
-		pdoc->SciLineFromPosition(r.First()));
-	const Sci::Line maxLine = pcs->DisplayLastFromDoc(
-		pdoc->SciLineFromPosition(r.Last()));
+	const Sci::Line docLineFirst = pdoc->SciLineFromPosition(r.First());
+	const Sci::Line minLine = pcs->DisplayFromDoc(docLineFirst);
+	Sci::Line docLineLast = docLineFirst;	// Common case where range is wholly in one document line
+	if (r.Last() >= pdoc->LineStart(docLineFirst + 1)) {
+		// Range covers multiple lines so need last line
+		docLineLast = pdoc->SciLineFromPosition(r.Last());
+	}
+	const Sci::Line maxLine = pcs->DisplayLastFromDoc(docLineLast);
 	const PRectangle rcClientDrawing = GetClientDrawingRectangle();
 	PRectangle rc;
 	const int leftTextOverlap = ((xOffset == 0) && (vs.leftMarginWidth > 0)) ? 1 : 0;
@@ -705,6 +709,15 @@ void Editor::SetEmptySelection(SelectionPosition currentPos_) {
 
 void Editor::SetEmptySelection(Sci::Position currentPos_) {
 	SetEmptySelection(SelectionPosition(currentPos_));
+}
+
+void Editor::SetSelectionFromSerialized(const char *serialized) {
+	if (serialized) {
+		sel = Selection(serialized);
+		sel.Truncate(pdoc->Length());
+		SetRectangularRange();
+		InvalidateStyleRedraw();
+	}
 }
 
 void Editor::MultipleSelectAdd(AddNumber addNumber) {
@@ -922,6 +935,37 @@ void Editor::SetLastXChosen() {
 	lastXChosen = static_cast<int>(pt.x) + xOffset;
 }
 
+void Editor::RememberSelectionForUndo(int index) {
+	EnsureModelState();
+	if (modelState) {
+		modelState->RememberSelectionForUndo(index, sel);
+		needRedoRemembered = true;
+		// Remember selection at end of processing current message
+	}
+}
+
+void Editor::RememberSelectionOntoStack(int index) {
+	EnsureModelState();
+	if (modelState) {
+		// Is undo currently inside a group?
+		if (!pdoc->AfterUndoSequenceStart()) {
+			// Don't remember selections inside a grouped sequence as can only
+			// unto or redo to the start and end of the group.
+			modelState->RememberSelectionOntoStack(index, topLine);
+		}
+	}
+}
+
+void Editor::RememberCurrentSelectionForRedoOntoStack() {
+	if (needRedoRemembered && (pdoc->UndoSequenceDepth() == 0)) {
+		EnsureModelState();
+		if (modelState) {
+			modelState->RememberSelectionForRedoOntoStack(pdoc->UndoCurrent(), sel, topLine);
+			needRedoRemembered = false;
+		}
+	}
+}
+
 void Editor::ScrollTo(Sci::Line line, bool moveThumb) {
 	const Sci::Line topLineNew = std::clamp<Sci::Line>(line, 0, MaxScrollPos());
 	if (topLineNew != topLine) {
@@ -999,21 +1043,25 @@ void Editor::MoveSelectedLines(int lineDelta) {
 	// if selection doesn't end at the beginning of a line greater than that of the start,
 	// then set it at the beginning of the next one
 	Sci::Position selectionEnd = SelectionEnd().Position();
-	const Sci::Line endLine = pdoc->SciLineFromPosition(selectionEnd);
+	Sci::Line endLine = pdoc->SciLineFromPosition(selectionEnd);
 	const Sci::Position beginningOfEndLine = pdoc->LineStart(endLine);
 	bool appendEol = false;
 	if (selectionEnd > beginningOfEndLine
 		|| selectionStart == selectionEnd) {
 		selectionEnd = pdoc->LineStart(endLine + 1);
 		appendEol = (selectionEnd == pdoc->Length() && pdoc->SciLineFromPosition(selectionEnd) == endLine);
+		endLine = pdoc->SciLineFromPosition(selectionEnd);
 	}
 
 	// if there's nowhere for the selection to move
 	// (i.e. at the beginning going up or at the end going down),
 	// stop it right there!
+	const bool docEndLineEmpty = pdoc->LineStart(endLine) == pdoc->Length();
 	if ((selectionStart == 0 && lineDelta < 0)
-		|| (selectionEnd == pdoc->Length() && lineDelta > 0)
-	        || selectionStart == selectionEnd) {
+		|| (selectionEnd == pdoc->Length() && lineDelta > 0
+			&& !docEndLineEmpty) // allow moving when end line of document is empty
+		|| ((selectionStart == selectionEnd)
+			&& !(lineDelta < 0 && docEndLineEmpty && selectionEnd == pdoc->Length()))) { // allow moving-up last empty line
 		return;
 	}
 
@@ -2077,13 +2125,13 @@ void Editor::InsertCharacter(std::string_view sv, CharacterSource charSource) {
 				}
 			}
 		}
+		ThinRectangularRange();
 	}
 	if (wrapOccurred) {
 		SetScrollBars();
 		SetVerticalScrollPos();
 		Redraw();
 	}
-	ThinRectangularRange();
 	// If in wrap mode rewrap current line so EnsureCaretVisible has accurate information
 	EnsureCaretVisible();
 	// Avoid blinking during rapid typing:
@@ -2359,22 +2407,44 @@ void Editor::SelectAll() {
 	Redraw();
 }
 
+void Editor::RestoreSelection(Sci::Position newPos, UndoRedo history) {
+	EnsureModelState();
+	if ((undoSelectionHistoryOption == UndoSelectionHistoryOption::Enabled) && modelState) {
+		// Undo wants the element after the current as it just undid it
+		const int index = pdoc->UndoCurrent() + (history == UndoRedo::undo ? 1 : 0);
+		const SelectionWithScroll selAndLine = modelState->SelectionFromStack(index, history);
+		if (!selAndLine.selection.empty()) {
+			ScrollTo(selAndLine.topLine);
+			sel = Selection(selAndLine.selection);
+			if (sel.IsRectangular()) {
+				const size_t mainForRectangular = sel.Main();
+				// Reconstitute ranges from rectangular range
+				SetRectangularRange();
+				// Restore main if possible.
+				if (mainForRectangular < sel.Count()) {
+					sel.SetMain(mainForRectangular);
+				}
+			}
+			newPos = -1; // Used selection from stack so don't use position returned from undo/redo.
+		}
+	}
+	if (newPos >= 0)
+		SetEmptySelection(newPos);
+	EnsureCaretVisible();
+}
+
 void Editor::Undo() {
 	if (pdoc->CanUndo()) {
 		InvalidateCaret();
 		const Sci::Position newPos = pdoc->Undo();
-		if (newPos >= 0)
-			SetEmptySelection(newPos);
-		EnsureCaretVisible();
+		RestoreSelection(newPos, UndoRedo::undo);
 	}
 }
 
 void Editor::Redo() {
 	if (pdoc->CanRedo()) {
 		const Sci::Position newPos = pdoc->Redo();
-		if (newPos >= 0)
-			SetEmptySelection(newPos);
-		EnsureCaretVisible();
+		RestoreSelection(newPos, UndoRedo::redo);
 	}
 }
 
@@ -2448,6 +2518,17 @@ void Editor::NotifyStyleNeeded(Document *, void *, Sci::Position endStyleNeeded)
 
 void Editor::NotifyErrorOccurred(Document *, void *, Status status) {
 	errorStatus = status;
+}
+
+void Editor::NotifyGroupCompleted(Document *, void *) noexcept {
+	// RememberCurrentSelectionForRedoOntoStack may throw (for memory exhaustion)
+	// but this method may not as it is called in UndoGroup destructor so ignore
+	// exception.
+	try {
+		RememberCurrentSelectionForRedoOntoStack();
+	} catch (...) {
+		// Ignore any exception
+	}
 }
 
 void Editor::NotifyChar(int ch, CharacterSource charSource) {
@@ -2634,6 +2715,12 @@ void Editor::CheckModificationForWrap(DocModification mh) {
 		const Sci::Line lineDoc = pdoc->SciLineFromPosition(mh.position);
 		const Sci::Line lines = std::max(static_cast<Sci::Line>(0), mh.linesAdded);
 		if (Wrapping()) {
+			// Check if this modification crosses any of the wrap points
+			if (wrapPending.NeedsWrap()) {
+				if (lineDoc < wrapPending.end) { // Inserted/deleted before or inside wrap range
+					wrapPending.end += mh.linesAdded;
+				}
+			}
 			NeedWrapping(lineDoc, lineDoc + lines + 1);
 		}
 		RefreshStyleData();
@@ -2712,6 +2799,15 @@ void Editor::NotifyModified(Document *, DocModification mh, void *) {
 			view.llc.Invalidate(LineLayout::ValidLevel::checkTextAndStyle);
 		}
 	} else {
+		if ((undoSelectionHistoryOption == UndoSelectionHistoryOption::Enabled) &&
+			FlagSet(mh.modificationType, ModificationFlags::User)) {
+			if (FlagSet(mh.modificationType, ModificationFlags::BeforeInsert | ModificationFlags::BeforeDelete)) {
+				RememberSelectionForUndo(pdoc->UndoCurrent());
+			}
+			if (FlagSet(mh.modificationType, ModificationFlags::InsertText | ModificationFlags::DeleteText)) {
+				RememberSelectionOntoStack(pdoc->UndoCurrent());
+			}
+		}
 		// Move selection and brace highlights
 		if (FlagSet(mh.modificationType, ModificationFlags::InsertText)) {
 			sel.MovePositions(true, mh.position, mh.length);
@@ -3047,7 +3143,7 @@ void Editor::ChangeCaseOfSelection(CaseMapping caseMapping) {
 		SelectionRange currentNoVS = current;
 		currentNoVS.ClearVirtualSpace();
 		const size_t rangeBytes = currentNoVS.Length();
-		if (rangeBytes > 0) {
+		if (rangeBytes > 0 && !RangeContainsProtected(currentNoVS)) {
 			std::string sText = RangeText(currentNoVS.Start().Position(), currentNoVS.End().Position());
 
 			std::string sMapped = CaseMapString(sText, caseMapping);
@@ -4306,13 +4402,21 @@ void Editor::GoToLine(Sci::Line lineNo) {
 	EnsureCaretVisible();
 }
 
-static bool Close(Point pt1, Point pt2, Point threshold) noexcept {
+namespace {
+
+bool Close(Point pt1, Point pt2, Point threshold) noexcept {
 	const Point ptDifference = pt2 - pt1;
 	if (std::abs(ptDifference.x) > threshold.x)
 		return false;
 	if (std::abs(ptDifference.y) > threshold.y)
 		return false;
 	return true;
+}
+
+constexpr bool AllowVirtualSpace(VirtualSpace virtualSpaceOptions, bool rectangular) noexcept {
+	return FlagSet(virtualSpaceOptions, (rectangular ? VirtualSpace::RectangularSelection : VirtualSpace::UserAccessible));
+}
+
 }
 
 std::string Editor::RangeText(Sci::Position start, Sci::Position end) const {
@@ -4658,10 +4762,6 @@ void Editor::MouseLeave() {
 		ptMouseLast = Point(-1, -1);
 		DwellEnd(true);
 	}
-}
-
-static constexpr bool AllowVirtualSpace(VirtualSpace virtualSpaceOptions, bool rectangular) noexcept {
-	return FlagSet(virtualSpaceOptions, (rectangular ? VirtualSpace::RectangularSelection : VirtualSpace::UserAccessible));
 }
 
 void Editor::ButtonDownWithModifiers(Point pt, unsigned int curTime, KeyMod modifiers) {
@@ -5446,6 +5546,7 @@ void Editor::SetDocPointer(Document *document) {
 		pdoc = document;
 	}
 	pdoc->AddRef();
+	modelState.reset();
 	pcs = ContractionStateCreate(pdoc->IsLarge());
 
 	// Ensure all positions within document
@@ -8407,8 +8508,8 @@ sptr_t Editor::WndProc(Message iMessage, uptr_t wParam, sptr_t lParam) {
 	case Message::GetLineSelStartPosition:
 	case Message::GetLineSelEndPosition: {
 			const SelectionSegment segmentLine(
-				SelectionPosition(pdoc->LineStart(LineFromUPtr(wParam))),
-				SelectionPosition(pdoc->LineEnd(LineFromUPtr(wParam))));
+				pdoc->LineStart(LineFromUPtr(wParam)),
+				pdoc->LineEnd(LineFromUPtr(wParam)));
 			for (size_t r=0; r<sel.Count(); r++) {
 				const SelectionSegment portion = sel.Range(r).Intersect(segmentLine);
 				if (portion.start.IsValid()) {
@@ -8600,6 +8701,22 @@ sptr_t Editor::WndProc(Message iMessage, uptr_t wParam, sptr_t lParam) {
 
 	case Message::GetChangeHistory:
 		return static_cast<sptr_t>(changeHistoryOption);
+
+	case Message::SetUndoSelectionHistory:
+		ChangeUndoSelectionHistory(static_cast<UndoSelectionHistoryOption>(wParam));
+		break;
+
+	case Message::GetUndoSelectionHistory:
+		return static_cast<sptr_t>(undoSelectionHistoryOption);
+
+	case Message::SetSelectionSerialized:
+		SetSelectionFromSerialized(ConstCharPtrFromSPtr(lParam));
+		break;
+
+	case Message::GetSelectionSerialized: {
+		const std::string serialized = sel.ToString();
+		return BytesResult(lParam, serialized);
+	}
 
 	case Message::SetExtraAscent:
 		vs.extraAscent = static_cast<int>(wParam);
@@ -9010,6 +9127,11 @@ sptr_t Editor::WndProc(Message iMessage, uptr_t wParam, sptr_t lParam) {
 	default:
 		return DefWndProc(iMessage, wParam, lParam);
 	}
+
+	// If there was a change that needs its selection saved and it wasn't explicity saved
+	// then do that here.
+	RememberCurrentSelectionForRedoOntoStack();
+
 	//Platform::DebugPrintf("end wnd proc\n");
 	return 0;
 }
