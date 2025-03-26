@@ -10,17 +10,13 @@
 
 .SUFFIXES: .cxx
 
-DIR_O=obj
+DIR_O=.
 DIR_BIN=..\bin
 
 COMPONENT=$(DIR_BIN)\Scintilla.dll
 LIBSCI=$(DIR_BIN)\libscintilla.lib
 
 LD=link
-
-!IF "$(PLATFORM:64=)" == "arm"
-ARM64=1
-!ENDIF
 
 !IFDEF SUPPORT_XP
 ADD_DEFINE=-D_USING_V110_SDK71_
@@ -32,15 +28,14 @@ SUBSYSTEM=-SUBSYSTEM:WINDOWS,5.02
 SUBSYSTEM=-SUBSYSTEM:WINDOWS,5.01
 !ENDIF
 !ELSE
+CETCOMPAT=-CETCOMPAT
 !IFDEF ARM64
 ADD_DEFINE=-D_ARM64_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE=1
 SUBSYSTEM=-SUBSYSTEM:WINDOWS,10.00
-!ELSE
-CETCOMPAT=-CETCOMPAT
 !ENDIF
 !ENDIF
 
-CRTFLAGS=$(ADD_DEFINE)
+CRTFLAGS=-D_CRT_SECURE_NO_DEPRECATE=1 $(ADD_DEFINE)
 CXXFLAGS=-Zi -TP -MP -W4 -EHsc -std:c++17 -utf-8 $(CRTFLAGS)
 CXXDEBUG=-Od -MTd -DDEBUG
 CXXNDEBUG=-O2 -MT -DNDEBUG -GL
@@ -70,10 +65,7 @@ CXXFLAGS=$(CXXFLAGS) $(CXXNDEBUG)
 INCLUDES=-I../include -I../src
 CXXFLAGS=$(CXXFLAGS) $(INCLUDES)
 
-all:	$(DIR_O) $(COMPONENT) $(LIBSCI)
-
-$(DIR_O):
-	mkdir "$(DIR_O)" 2>NUL || cd .
+all:	$(COMPONENT) $(LIBSCI)
 
 clean:
 	-del /q $(DIR_O)\*.obj $(DIR_O)\*.pdb $(DIR_O)\*.asm $(COMPONENT) \
@@ -117,6 +109,10 @@ SRC_OBJS=\
 	$(DIR_O)\UniqueString.obj \
 	$(DIR_O)\ViewStyle.obj \
 	$(DIR_O)\XPM.obj
+
+
+# To have PCRE boost regex with header only is integrated and not just the one from std
+!INCLUDE ../../boostregex/nppSpecifics.mak
 
 COMPONENT_OBJS = \
 	$(DIR_O)\HanjaDic.obj \
