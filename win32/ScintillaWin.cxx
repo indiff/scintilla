@@ -2910,18 +2910,8 @@ public:
 		}
 		foldingMap = DBCSGetFoldMap(cp);
 	}
-	size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) override {
-		if ((lenMixed == 1) && (sizeFolded > 0)) {
-			folded[0] = mapping[static_cast<unsigned char>(mixed[0])];
-			return 1;
-		} else {
-			if (lenMixed > utf16Mixed.size()) {
-				utf16Mixed.resize(lenMixed + 8);
-			}
-			const size_t nUtf16Mixed = WideCharFromMultiByte(cp,
-				std::string_view(mixed, lenMixed),
-				&utf16Mixed[0],
-				utf16Mixed.size());
+	size_t Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) override;
+};
 
 size_t CaseFolderDBCS::Fold(char *folded, size_t sizeFolded, const char *mixed, size_t lenMixed) {
 	// This loop outputs the same length as input as for each char 1-byte -> 1-byte; 2-byte -> 2-byte
@@ -2942,6 +2932,8 @@ size_t CaseFolderDBCS::Fold(char *folded, size_t sizeFolded, const char *mixed, 
 		}
 	}
 	return lenOut;
+}
+
 }
 
 std::unique_ptr<CaseFolder> ScintillaWin::CaseFolderForEncoding() {
