@@ -14,6 +14,9 @@ namespace Scintilla::Internal {
 #define USER_DEFAULT_SCREEN_DPI		96
 #endif
 
+// Used for defining font size with LOGFONT
+constexpr int pointsPerInch = 72;
+
 extern void Platform_Initialise(void *hInstance) noexcept;
 
 extern void Platform_Finalise(bool fromDllMain) noexcept;
