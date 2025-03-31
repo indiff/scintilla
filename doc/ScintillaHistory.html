@@ -598,11 +598,15 @@
     </h3>
     <ul>
 	<li>
-	Released 25 February 2025.
+	Released 2 April 2025.
 	</li>
 	<li>
 	Disallow changing case of protected text.
 	<a href="https://sourceforge.net/p/scintilla/bugs/2463/">Bug #2463</a>.
+	</li>
+	<li>
+	Return enumeration type from MarkerSymbolDefined to match MarkerDefine.
+	<a href="https://sourceforge.net/p/scintilla/bugs/2469/">Bug #2469</a>.
 	</li>
 	<li>
 	On Win32, use DirectWrite for autocompletion lists when DirectWrite chosen for document text.
@@ -610,6 +614,9 @@
 	<li>
 	On Win32, optimize case-insensitive DBCS search to be around 5 times faster
 	by using 64K memory to cache folding data for each DBCS code page used.
+	</li>
+	<li>
+	On Win32, fix a crash with bidirectional text.
 	</li>
 	<li>
 	When using Visual C++ through nmake, fix building for ARM64.

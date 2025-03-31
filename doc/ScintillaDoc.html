@@ -130,7 +130,7 @@
 
     <h1>Scintilla Documentation</h1>
 
-    <p>Last edited 13 March 2025 NH</p>
+    <p>Last edited 29 March 2025 NH</p>
 
     <p style="background:#90F0C0">Scintilla 5 has moved the lexers from Scintilla into a new
     <a href="Lexilla.html">Lexilla</a> project.<br />
@@ -4983,6 +4983,8 @@ struct Sci_TextToFindFull {
     </table>
 
     <p>Different shapes available for EOL annotations.
+    Different shapes depend on drawing API so <code>SC_TECHNOLOGY_DEFAULT</code> on Win32
+    only draws a rectangle.
     Only one shape can currently be used for the whole document - this illustration was produced by trickery.</p>
     <p><img src="StadiumVariants.png" alt="Different shapes available for EOL annotations" /></p>
 
@@ -9066,21 +9068,24 @@ struct SCNotification {
 	Sci_Position position;
 	/* SCN_STYLENEEDED, SCN_DOUBLECLICK, SCN_MODIFIED, SCN_MARGINCLICK, */
 	/* SCN_MARGINRIGHTCLICK, SCN_NEEDSHOWN, SCN_DWELLSTART, SCN_DWELLEND, */
-	/* SCN_CALLTIPCLICK, SCN_HOTSPOTCLICK, SCN_HOTSPOTDOUBLECLICK, */
-	/* SCN_HOTSPOTRELEASECLICK, SCN_INDICATORCLICK, SCN_INDICATORRELEASE, */
-	/* SCN_USERLISTSELECTION, SCN_AUTOCSELECTION, SCN_AUTOCSELECTIONCHANGE */
+	/* SCN_CALLTIPCLICK, */
+	/* SCN_HOTSPOTCLICK, SCN_HOTSPOTDOUBLECLICK, SCN_HOTSPOTRELEASECLICK, */
+	/* SCN_INDICATORCLICK, SCN_INDICATORRELEASE, */
+	/* SCN_USERLISTSELECTION, SCN_AUTOCCOMPLETED, SCN_AUTOCSELECTION, */
+	/* SCN_AUTOCSELECTIONCHANGE */
 
 	int ch;
-	/* SCN_CHARADDED, SCN_KEY, SCN_AUTOCCOMPLETE, SCN_AUTOCSELECTION, */
+	/* SCN_CHARADDED, SCN_KEY, SCN_AUTOCCOMPLETED, SCN_AUTOCSELECTION, */
 	/* SCN_USERLISTSELECTION */
 	int modifiers;
 	/* SCN_KEY, SCN_DOUBLECLICK, SCN_HOTSPOTCLICK, SCN_HOTSPOTDOUBLECLICK, */
 	/* SCN_HOTSPOTRELEASECLICK, SCN_INDICATORCLICK, SCN_INDICATORRELEASE, */
+	/* SCN_MARGINCLICK, SCN_MARGINRIGHTCLICK */
 
 	int modificationType;	/* SCN_MODIFIED */
 	const char *text;
-	/* SCN_MODIFIED, SCN_USERLISTSELECTION, SCN_AUTOCSELECTION, SCN_URIDROPPED, */
-	/* SCN_AUTOCSELECTIONCHANGE */
+	/* SCN_MODIFIED, SCN_USERLISTSELECTION, SCN_URIDROPPED, */
+	/* SCN_AUTOCCOMPLETED, SCN_AUTOCSELECTION, SCN_AUTOCSELECTIONCHANGE */
 
 	Sci_Position length;		/* SCN_MODIFIED */
 	Sci_Position linesAdded;	/* SCN_MODIFIED */
