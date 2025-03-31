@@ -44,6 +44,7 @@ $(DIR_O)/ScintillaWin.obj: \
 	../src/Debugging.h \
 	../src/Geometry.h \
 	../src/Platform.h \
+	../src/CharacterType.h \
 	../src/CharacterCategoryMap.h \
 	../src/Position.h \
 	../src/UniqueString.h \
@@ -64,6 +65,7 @@ $(DIR_O)/ScintillaWin.obj: \
 	../src/Document.h \
 	../src/CaseConvert.h \
 	../src/UniConversion.h \
+	../src/DBCS.h \
 	../src/Selection.h \
 	../src/PositionCache.h \
 	../src/EditModel.h \
