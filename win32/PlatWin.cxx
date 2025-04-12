@@ -472,10 +472,10 @@ public:
 		// Draw something on the bitmap section.
 		constexpr size_t nPoints = std::size(arrow);
 		D2D1_POINT_2F points[nPoints]{};
-		const FLOAT scale = width/32.0f;
+		const FLOAT lscale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
-			points[i].x = arrow[i][0] * scale;
-			points[i].y = arrow[i][1] * scale;
+			points[i].x = arrow[i][0] * lscale;
+			points[i].y = arrow[i][1] * lscale;
 		}
 
 		const Geometry geometry = GeometryCreate();
@@ -503,7 +503,7 @@ public:
 		}
 
 		if (const BrushSolid pBrushStroke = BrushSolidCreate(pTarget.Get(), strokeColour)) {
-			pTarget->DrawGeometry(geometry.Get(), pBrushStroke.Get(), scale);
+			pTarget->DrawGeometry(geometry.Get(), pBrushStroke.Get(), lscale);
 		}
 
 		hr = pTarget->EndDraw();
@@ -521,13 +521,13 @@ public:
 		// Draw something on the DIB section.
 		constexpr size_t nPoints = std::size(arrow);
 		POINT points[nPoints]{};
-		const float scale = width/32.0f;
+		const float lscale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
-			points[i].x = std::lround(arrow[i][0] * scale);
-			points[i].y = std::lround(arrow[i][1] * scale);
+			points[i].x = std::lround(arrow[i][0] * lscale);
+			points[i].y = std::lround(arrow[i][1] * lscale);
 		}
 
-		const DWORD penWidth = std::lround(scale);
+		const DWORD penWidth = std::lround(lscale);
 		HPEN pen{};
 		if (penWidth > 1) {
 			const LOGBRUSH brushParameters { BS_SOLID, strokeColour, 0 };
