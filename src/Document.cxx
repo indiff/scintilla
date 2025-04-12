@@ -120,7 +120,7 @@ void ActionDuration::AddSample(size_t numberActions, double durationOfActions) n
 	// Most recent value contributes 25% to smoothed value.
 	constexpr double alpha = 0.25;
 
-	const double durationOne = durationOfActions / numberActions;
+	const double durationOne = durationOfActions / static_cast<double>(numberActions);
 	duration = std::clamp(alpha * durationOne + (1.0 - alpha) * duration,
 		minDuration, maxDuration);
 }
@@ -632,14 +632,14 @@ constexpr bool IsSubordinate(FoldLevel levelStart, FoldLevel levelTry) noexcept 
 
 Sci::Line Document::GetLastChild(Sci::Line lineParent, std::optional<FoldLevel> level, Sci::Line lastLine) {
 	const FoldLevel levelStart = LevelNumberPart(level ? *level : GetFoldLevel(lineParent));
-	const Sci::Line maxLine = LinesTotal();
-	const Sci::Line lookLastLine = (lastLine != -1) ? std::min(LinesTotal() - 1, lastLine) : -1;
+	const Sci::Line maxLine = LinesTotal() - 1;
+	const Sci::Line lookLastLine = (lastLine != -1) ? std::min(maxLine, lastLine) : maxLine;
 	Sci::Line lineMaxSubord = lineParent;
-	while (lineMaxSubord < maxLine - 1) {
+	while (lineMaxSubord < maxLine) {
 		EnsureStyledTo(LineStart(lineMaxSubord + 2));
 		if (!IsSubordinate(levelStart, GetFoldLevel(lineMaxSubord + 1)))
 			break;
-		if ((lookLastLine != -1) && (lineMaxSubord >= lookLastLine) && !LevelIsWhitespace(GetFoldLevel(lineMaxSubord)))
+		if ((lineMaxSubord >= lookLastLine) && !LevelIsWhitespace(GetFoldLevel(lineMaxSubord)))
 			break;
 		lineMaxSubord++;
 	}
@@ -1109,6 +1109,12 @@ bool SCI_METHOD Document::IsDBCSLeadByte(char ch) const {
 	return IsDBCSLeadByteNoExcept(ch);
 }
 
+// Silence 'magic' number use since the set of DBCS lead and trail bytes differ
+// between encodings and would require many constant declarations that would just
+// obscure the behaviour.
+
+// NOLINTBEGIN(*-magic-numbers)
+
 bool Document::IsDBCSLeadByteNoExcept(char ch) const noexcept {
 	// Used inside core Scintilla
 	// Byte ranges found in Wikipedia articles with relevant search strings in each case
@@ -1191,6 +1197,8 @@ unsigned char Document::DBCSMinTrailByte() const noexcept {
 		return 0;
 	}
 }
+
+// NOLINTEND(*-magic-numbers)
 
 int Document::DBCSDrawBytes(std::string_view text) const noexcept {
 	if (text.length() <= 1) {
@@ -2640,7 +2648,7 @@ void Document::SetLexInterface(std::unique_ptr<LexInterface> pLexInterface) noex
 
 void Document::SetViewState(void *view, ViewStateShared pVSS) {
 	if (pVSS) {
-		viewData[view] = pVSS;
+		viewData[view] = std::move(pVSS);
 	} else {
 		viewData.erase(view);
 	}
@@ -3027,7 +3035,7 @@ Sci::Position Document::BraceMatch(Sci::Position position, Sci::Position /*maxRe
 	// Avoid using MovePositionOutsideChar to check DBCS trail byte
 	unsigned char maxSafeChar = 0xff;
 	if (dbcsCodePage != 0 && dbcsCodePage != CpUtf8) {
-		maxSafeChar = DBCSMinTrailByte() - 1;
+		maxSafeChar = std::max<unsigned char>(DBCSMinTrailByte(), 1) - 1;
 	}
 
 	while ((position >= 0) && (position < LengthNoExcept())) {
