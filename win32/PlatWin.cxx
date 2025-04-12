@@ -63,6 +63,9 @@ using Microsoft::WRL::ComPtr;
 
 #include "WinTypes.h"
 #include "PlatWin.h"
+#include "ListBox.h"
+#if defined(USE_D2D)
+#include "SurfaceD2D.h"
 
 // __uuidof is a Microsoft extension but makes COM code neater, so disable warning
 #if defined(__clang__)
@@ -73,6 +76,7 @@ using namespace Scintilla;
 
 namespace Scintilla::Internal {
 
+HINSTANCE hinstPlatformRes{};
 UINT CodePageFromCharSet(CharacterSet characterSet, UINT documentCodePage) noexcept;
 
 #if defined(USE_D2D)
@@ -294,6 +298,8 @@ UINT uSystemDPI = USER_DEFAULT_SCREEN_DPI;
 using GetDpiForWindowSig = UINT(WINAPI *)(HWND hwnd);
 GetDpiForWindowSig fnGetDpiForWindow = nullptr;
 
+HMODULE hDLLShcore{};
+using GetDpiForMonitorSig = HRESULT(WINAPI *)(HMONITOR hmonitor, /*MONITOR_DPI_TYPE*/int dpiType, UINT *dpiX, UINT *dpiY);
 HMODULE hDLLShcore {};
 using GetDpiForMonitorSig = HRESULT (WINAPI *)(HMONITOR hmonitor, /*MONITOR_DPI_TYPE*/int dpiType, UINT *dpiX, UINT *dpiY);
 GetDpiForMonitorSig fnGetDpiForMonitor = nullptr;
@@ -2868,6 +2874,8 @@ class CursorHelper {
 	DWORD *pixels = nullptr;
 	const int width;
 	const int height;
+	const float scale;
+	static constexpr float baseSize = 32.0f;
 
 	static constexpr float arrow[][2] = {
 		{ 32.0f - 12.73606f,32.0f - 19.04075f },
@@ -2892,7 +2900,6 @@ public:
 		}
 	}
 
-	CursorHelper(int width_, int height_) noexcept : width{width_}, height{height_} {
 		hMemDC = ::CreateCompatibleDC({});
 		if (!hMemDC) {
 			return;
@@ -2974,7 +2981,6 @@ public:
 		// Draw something on the bitmap section.
 		constexpr size_t nPoints = std::size(arrow);
 		D2D1_POINT_2F points[nPoints]{};
-		const FLOAT scale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
 			points[i].x = arrow[i][0] * scale;
 			points[i].y = arrow[i][1] * scale;
@@ -3023,7 +3029,6 @@ public:
 		// Draw something on the DIB section.
 		constexpr size_t nPoints = std::size(arrow);
 		POINT points[nPoints]{};
-		const float scale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
 			points[i].x = std::lround(arrow[i][0] * scale);
 			points[i].y = std::lround(arrow[i][1] * scale);

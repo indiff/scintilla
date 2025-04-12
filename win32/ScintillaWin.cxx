@@ -1036,7 +1036,7 @@ void ScintillaWin::DisplayCursor(Window::Cursor c) {
 		c = static_cast<Window::Cursor>(cursorMode);
 	}
 	if (c == Window::Cursor::reverseArrow) {
-		::SetCursor(reverseArrowCursor.Load(static_cast<UINT>(dpi * deviceScaleFactor)));
+		::SetCursor(reverseArrowCursor.Load(static_cast<UINT>(static_cast<float>(dpi) * deviceScaleFactor)));
 	} else {
 		wMain.SetCursor(c);
 	}
@@ -1643,6 +1643,10 @@ constexpr bool IsVisualCharacter(wchar_t charCode) noexcept {
 
 namespace Scintilla::Internal {
 
+// Removing 'magic' numbers here would not help here.
+
+// NOLINTBEGIN(*-magic-numbers)
+
 UINT CodePageFromCharSet(CharacterSet characterSet, UINT documentCodePage) noexcept {
 	if (documentCodePage == CpUtf8) {
 		return CpUtf8;
@@ -1679,6 +1683,8 @@ UINT CodePageFromCharSet(CharacterSet characterSet, UINT documentCodePage) noexc
 	}
 	return documentCodePage;
 }
+
+// NOLINTEND(*-magic-numbers)
 
 }
 
@@ -2866,11 +2872,11 @@ constexpr int minTrailByte = 0x30;
 
 // CreateFoldMap creates a fold map by calling platform APIs so will differ between platforms.
 void CreateFoldMap(int codePage, FoldMap *foldingMap) {
-	for (int byte1 = highByteFirst; byte1 <= highByteLast; byte1++) {
-		const char ch1 = byte1 & 0xFF;	// & 0xFF avoids warnings but has no real effect.
+	for (unsigned char byte1 = highByteLast; byte1 >= highByteFirst; byte1--) {
+		const char ch1 = byte1;
 		if (DBCSIsLeadByte(codePage, ch1)) {
-			for (int byte2 = minTrailByte; byte2 <= highByteLast; byte2++) {
-				const char ch2 = byte2 & 0xFF;
+			for (unsigned char byte2 = highByteLast; byte2 >= minTrailByte; byte2--) {
+				const char ch2 = byte2;
 				if (DBCSIsTrailByte(codePage, ch2)) {
 					const DBCSPair pair{ ch1, ch2 };
 					const uint16_t index = DBCSIndex(ch1, ch2);
@@ -3486,8 +3492,8 @@ LRESULT ScintillaWin::ImeOnReconvert(LPARAM lParam) {
 		return 0;
 
 	// No selection asks IME to fill target fields with its own value.
-	const int tgWlen = rc->dwTargetStrLen;
-	const int tgWstart = rc->dwTargetStrOffset / sizeof(wchar_t);
+	const size_t tgWlen = rc->dwTargetStrLen;
+	const size_t tgWstart = rc->dwTargetStrOffset / sizeof(wchar_t);
 
 	std::string tgCompStart = StringEncode(rcFeed.substr(0, tgWstart), codePage);
 	std::string tgComp = StringEncode(rcFeed.substr(tgWstart, tgWlen), codePage);
