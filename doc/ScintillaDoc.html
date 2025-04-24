@@ -130,7 +130,7 @@
 
     <h1>Scintilla Documentation</h1>
 
-    <p>Last edited 29 March 2025 NH</p>
+    <p>Last edited 23 April 2025 NH</p>
 
     <p style="background:#90F0C0">Scintilla 5 has moved the lexers from Scintilla into a new
     <a href="Lexilla.html">Lexilla</a> project.<br />
@@ -151,6 +151,8 @@
     discussion of folding</a>.<br />
      <a class="jump" href="https://github.com/geany/geany/files/5204338/Scintilla-var.aq-Tutorial.pdf">
      Beginner's Guide to lexing and folding</a>.<br />
+     <a class="jump" href="https://www.youtube.com/watch?v=M07iGUA07rY">
+     Video on writing a lexer with wxStyledTextCtrl</a>.<br />
      The <a class="jump" href="SciCoding.html">coding style</a> used in Scintilla and SciTE is
     worth following if you want to contribute code to Scintilla but is not compulsory.</p>
 
@@ -2052,6 +2054,14 @@ struct Sci_TextToFindFull {
           <td>1</td>
 
           <td>Restore selection for each undo and redo.</td>
+        </tr>
+
+        <tr>
+          <th align="left"><code>SC_UNDO_SELECTION_HISTORY_SCROLL</code></th>
+
+          <td>2</td>
+
+          <td>Restore vertical scroll position. Has no effect without <code>SC_UNDO_SELECTION_HISTORY_ENABLED</code>.</td>
         </tr>
 
       </tbody>
@@ -4539,8 +4549,8 @@ struct Sci_TextToFindFull {
     <p>Using a margin number outside the valid range has no
     effect. By default, margin 0 is set to display line numbers, but is given a width of 0, so it
     is hidden. Margin 1 is set to display non-folding symbols and is given a width of 16 pixels, so
-    it is visible. Margin 2 is set to display the folding symbols, but is given a width of 0, so it
-    is hidden. Of course, you can set the margins to be whatever you wish.</p>
+    it is visible. Margin 2 is a symbol margin that is given a width of 0, so it is hidden.
+    Of course, you can set the margins to be whatever you wish.</p>
 
     <p>Styled text margins used to show revision and blame information:</p>
     <p><img src="styledmargin.png" alt="Styled text margins used to show revision and blame information" /></p>
