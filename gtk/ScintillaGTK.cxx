@@ -2601,23 +2601,8 @@ bool ScintillaGTK::RetrieveSurroundingThis(GtkIMContext *context) {
 		const Sci::Position startByte = pdoc->LineStart(line);
 		const Sci::Position endByte = pdoc->LineEnd(line);
 
-		std::string utf8Text;
-		gint cursorIndex; // index of the cursor inside utf8Text, in bytes
-		const char *charSetBuffer;
-
-		if (IsUnicodeMode() || ! *(charSetBuffer = CharacterSetID())) {
-			utf8Text = RangeText(startByte, endByte);
-			cursorIndex = pos - startByte;
-		} else {
-			// Need to convert
-			std::string tmpbuf = RangeText(startByte, pos);
-			utf8Text = ConvertText(&tmpbuf[0], tmpbuf.length(), "UTF-8", charSetBuffer, false);
-			cursorIndex = utf8Text.length();
-			if (endByte > pos) {
-				tmpbuf = RangeText(pos, endByte);
-				utf8Text += ConvertText(&tmpbuf[0], tmpbuf.length(), "UTF-8", charSetBuffer, false);
-			}
-		}
+		std::string utf8Text = UTF8FromEncoded(RangeText(startByte, endByte));
+		gint cursorIndex = UTF8FromEncoded(RangeText(startByte, pos)).length();
 
 		gtk_im_context_set_surrounding(context, &utf8Text[0], utf8Text.length(), cursorIndex);
 
@@ -2634,6 +2619,10 @@ gboolean ScintillaGTK::RetrieveSurrounding(GtkIMContext *context, ScintillaGTK *
 
 bool ScintillaGTK::DeleteSurroundingThis(GtkIMContext *, gint characterOffset, gint characterCount) {
 	try {
+		if (pdoc->TentativeActive()) {
+			// First remove composition text so that correct surrounding text is deleted.
+			pdoc->TentativeUndo();
+		}
 		const Sci::Position startByte = pdoc->GetRelativePosition(CurrentPosition(), characterOffset);
 		if (startByte == INVALID_POSITION)
 			return false;
@@ -3096,6 +3085,8 @@ void ScintillaGTK::SetDocPointer(Document *document) {
 	}
 
 	Editor::SetDocPointer(document);
+
+	ChangeScrollBars();
 
 	if (sciAccessible) {
 		// the accessible needs have the old Document, but also the new one active
