@@ -1052,7 +1052,7 @@ HRESULT ScintillaWin::CreateSwapChain(HWND hwnd) {
 	if (FAILED(hr))
 		return hr;
 
-	// All successful so export swap chain for later presentation 
+	// All successful so export swap chain for later presentation
 	pDXGISwapChain = std::move(pSwapChain);
 	return S_OK;
 }

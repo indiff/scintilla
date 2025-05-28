@@ -81,23 +81,17 @@ LineLayout::LineLayout(Sci::Line lineNumber_, int maxLineLength_) :
 	Resize(maxLineLength_);
 }
 
-LineLayout::~LineLayout() {
-	Free();
-}
-
 void LineLayout::Resize(int maxLineLength_) {
 	if (maxLineLength_ > maxLineLength) {
-		Free();
 		const size_t lineAllocation = maxLineLength_ + 1;
 		chars = std::make_unique<char[]>(lineAllocation);
 		styles = std::make_unique<unsigned char []>(lineAllocation);
 		// Extra position allocated as sometimes the Windows
 		// GetTextExtentExPoint API writes an extra element.
 		positions = std::make_unique<XYPOSITION []>(lineAllocation + 1);
-		if (bidiData) {
-			bidiData->Resize(maxLineLength_);
-		}
-
+		lineStarts.reset();
+		bidiData.reset();
+		lenLineStarts = 0;
 		maxLineLength = maxLineLength_;
 	}
 }
@@ -114,15 +108,6 @@ void LineLayout::EnsureBidiData() {
 		bidiData = std::make_unique<BidiData>();
 		bidiData->Resize(maxLineLength);
 	}
-}
-
-void LineLayout::Free() noexcept {
-	chars.reset();
-	styles.reset();
-	positions.reset();
-	lineStarts.reset();
-	lenLineStarts = 0;
-	bidiData.reset();
 }
 
 void LineLayout::ClearPositions() {
@@ -203,7 +188,7 @@ int LineLayout::SubLineFromPosition(int posInLine, PointEnd pe) const noexcept {
 void LineLayout::AddLineStart(Sci::Position start) {
 	lines++;
 	if (lines >= lenLineStarts) {
-		const int newMaxLines = lines + 20;
+		const int newMaxLines = lines * 2 + 4;
 		std::unique_ptr<int[]> newLineStarts = std::make_unique<int[]>(newMaxLines);
 		if (lenLineStarts) {
 			std::copy(lineStarts.get(), lineStarts.get() + lenLineStarts, newLineStarts.get());
@@ -389,8 +374,8 @@ void LineLayout::WrapLine(const Document *pdoc, Sci::Position posLineStart, Wrap
 					lastGoodBreak = CharacterBoundary(lastGoodBreak, 1);
 				}
 			}
+			AddLineStart(lastGoodBreak);
 			lastLineStart = lastGoodBreak;
-			AddLineStart(lastLineStart);
 			startOffset = positions[lastLineStart];
 			// take into account the space for start wrap mark and indent
 			startOffset += wrapWidth - wrapIndent;
