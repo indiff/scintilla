@@ -1868,7 +1868,6 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 	RefreshStyleData();
 	if (paintState == PaintState::abandoned)
 		return;	// Scroll bars may have changed so need redraw
-	RefreshPixMaps(surfaceWindow);
 
 	paintAbandonedByStyling = false;
 
@@ -1880,7 +1879,6 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 
 	if (NotifyUpdateUI()) {
 		RefreshStyleData();
-		RefreshPixMaps(surfaceWindow);
 	}
 
 	// Wrap the visible lines if needed.
@@ -1890,8 +1888,9 @@ void Editor::Paint(Surface *surfaceWindow, PRectangle rcArea) {
 		if (AbandonPaint()) {
 			return;
 		}
-		RefreshPixMaps(surfaceWindow);	// In case pixmaps invalidated by scrollbar change
 	}
+
+	RefreshPixMaps(surfaceWindow);
 
 	if (!marginView.pixmapSelPattern->Initialised()) {
 		// When Direct2D is used, pixmap creation may fail with D2DERR_RECREATE_TARGET so
@@ -4617,7 +4616,7 @@ bool Editor::PointInSelection(Point pt) {
 }
 
 ptrdiff_t Editor::SelectionFromPoint(Point pt) {
-	// Prioritize checking inside non-empty selections since each character will be inside only 1 
+	// Prioritize checking inside non-empty selections since each character will be inside only 1
 	const SelectionPosition posChar = SPositionFromLocation(pt, true, true);
 	for (size_t r = 0; r < sel.Count(); r++) {
 		if (sel.Range(r).ContainsCharacter(posChar)) {
