@@ -6538,7 +6538,7 @@ struct Sci_TextToFindFull {
      <a class="message" href="#SCI_AUTOCGETMAXWIDTH">SCI_AUTOCGETMAXWIDTH &rarr; int</a><br />
      <a class="message" href="#SCI_AUTOCSETSTYLE">SCI_AUTOCSETSTYLE(int style)</a><br />
      <a class="message" href="#SCI_AUTOCGETSTYLE">SCI_AUTOCGETSTYLE &rarr; int</a><br />
-     <a class="message" href="#SCI_AUTOCSETIMAGESCALE">SCI_AUTOCSETIMAGESCALE(int scale)</a><br />
+     <a class="message" href="#SCI_AUTOCSETIMAGESCALE">SCI_AUTOCSETIMAGESCALE(int scalePercent)</a><br />
      <a class="message" href="#SCI_AUTOCGETIMAGESCALE">SCI_AUTOCGETIMAGESCALE &rarr; int</a><br />
      <a class="element" href="#SC_ELEMENT_LIST">SC_ELEMENT_LIST : colouralpha</a><br />
      <a class="element" href="#SC_ELEMENT_LIST_BACK">SC_ELEMENT_LIST_BACK : colouralpha</a><br />
@@ -10528,6 +10528,13 @@ EM_SETTARGETDEVICE
         <tr>
           <td align="left"><code>DISABLE_D2D</code></td>
           <td>(Win32) Build Scintilla without Direct2D/DirectWrite.</td>
+        </tr>
+
+        <tr>
+          <td align="left"><code>PTRDIFF_DOESNT_ALIAS_INT</code></td>
+          <td>Define if <code>ptrdiff_t*</code> does not alias <code>int*</code>.
+          This is detected automatically, but the check may be unreliable.
+          Try to define this symbol in case of errors about undefined symbols.</td>
         </tr>
       </tbody>
     </table>
