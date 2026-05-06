@@ -10,6 +10,11 @@
 
 namespace Scintilla::Internal {
 
+struct Failure : public std::runtime_error {
+	Status status;
+	Failure(Status status_) : std::runtime_error("failure with status"), status(status_) {}
+};
+
 // Interface to per-line data that wants to see each line insertion and deletion
 class PerLine {
 public:
@@ -161,7 +166,7 @@ public:
 	/// Setting styles for positions outside the range of the buffer is safe and has no effect.
 	/// @return range where style of characters changed.
 	ChangedRange SetStyles(Sci::Position position, const char *styles, Sci::Position length) noexcept;
-	ChangedRange SetStyleFor(Sci::Position position, Sci::Position lengthStyle, char styleValue) noexcept;
+	ChangedRange SetStyleFor(Sci::Position position, Sci::Position length, char value) noexcept;
 
 	const char *DeleteChars(Sci::Position position, Sci::Position deleteLength, bool &startSequence);
 
