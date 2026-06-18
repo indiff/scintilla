@@ -18,11 +18,12 @@ LIBSCI = $(DIR_BIN)/libscintilla.a
 WARNINGS = -Wpedantic -Wall -Wextra
 
 ifdef CLANG
-CXX = clang++
+  CXX = clang++
 else
-# MinGW GCC
-LIBSMINGW = -lstdc++
-STRIPOPTION = -s
+  # MinGW GCC
+  LIBSMINGW = -lstdc++
+  STRIPOPTION = -s
+  WARNINGS += -Wconversion
 endif
 ARFLAGS = rc
 RANLIB ?= ranlib

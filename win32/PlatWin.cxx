@@ -169,7 +169,7 @@ float GetDeviceScaleFactorWhenGdiScalingActive(HWND hWnd) noexcept {
 			const HMONITOR hMonitor = MonitorFromWindowHandleScaling(hRootWnd);
 			DEVICE_SCALE_FACTOR deviceScaleFactor;
 			if (S_OK == fnGetScaleFactorForMonitor(hMonitor, &deviceScaleFactor))
-				return static_cast<int>(deviceScaleFactor) / 100.f;
+				return static_cast<float>(static_cast<int>(deviceScaleFactor)) / 100.f;
 		}
 	}
 	return 1.f;
@@ -343,7 +343,7 @@ void Window::SetPositionRelative(PRectangle rc, const Window *relativeTo) {
 		const RECT rcMonitor = RectFromPRectangle(rc);
 
 		HMONITOR hMonitor = MonitorFromRect(&rcMonitor, MONITOR_DEFAULTTONEAREST);
-		// If hMonitor is NULL, that's just the main screen anyway.
+		// If hMonitor is NULL, that's just the main screen anyways.
 		const RECT rcWork = RectFromMonitor(hMonitor);
 
 		if (rcWork.left < rcWork.right) {
@@ -473,10 +473,9 @@ public:
 		// Draw something on the bitmap section.
 		constexpr size_t nPoints = std::size(arrow);
 		D2D1_POINT_2F points[nPoints]{};
-		const FLOAT lscale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
-			points[i].x = arrow[i][0] * lscale;
-			points[i].y = arrow[i][1] * lscale;
+			points[i].x = arrow[i][0] * scale;
+			points[i].y = arrow[i][1] * scale;
 		}
 
 		const Geometry geometry = GeometryCreate();
@@ -504,7 +503,7 @@ public:
 		}
 
 		if (const BrushSolid pBrushStroke = BrushSolidCreate(pTarget.Get(), strokeColour)) {
-			pTarget->DrawGeometry(geometry.Get(), pBrushStroke.Get(), lscale);
+			pTarget->DrawGeometry(geometry.Get(), pBrushStroke.Get(), scale);
 		}
 
 		hr = pTarget->EndDraw();
@@ -522,13 +521,12 @@ public:
 		// Draw something on the DIB section.
 		constexpr size_t nPoints = std::size(arrow);
 		POINT points[nPoints]{};
-		const float lscale = width/32.0f;
 		for (size_t i = 0; i < nPoints; i++) {
-			points[i].x = std::lround(arrow[i][0] * lscale);
-			points[i].y = std::lround(arrow[i][1] * lscale);
+			points[i].x = std::lround(arrow[i][0] * scale);
+			points[i].y = std::lround(arrow[i][1] * scale);
 		}
 
-		const DWORD penWidth = std::lround(lscale);
+		const DWORD penWidth = std::lround(scale);
 		HPEN pen{};
 		if (penWidth > 1) {
 			const LOGBRUSH brushParameters { BS_SOLID, strokeColour, 0 };

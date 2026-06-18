@@ -807,7 +807,7 @@ Sci::Position EditView::StartEndDisplayLine(Surface *surface, const EditModel &m
 		const Sci::Position posLineStart = model.pdoc->LineStart(line);
 		LayoutLine(model, surface, vs, ll.get(), model.wrapWidth);
 		const Sci::Position posInLine = pos - posLineStart;
-		if (posInLine <= ll->numCharsInLine) {
+		if (posInLine <= ll->maxLineLength) {
 			for (int subLine = 0; subLine < ll->lines; subLine++) {
 				if ((posInLine >= ll->LineStart(subLine)) &&
 				    (posInLine <= ll->LineStart(subLine + 1)) &&
@@ -2164,7 +2164,7 @@ void EditView::DrawForeground(Surface *surface, const EditModel &model, const Vi
 							hover =	rangeRun.ContainsCharacter(model.hoverIndicatorPos);
 						}
 						if (hover) {
-							if (indicator.sacHover.style == IndicatorStyle::TextFore) {
+							if (indicator.sacHover.style == IndicatorStyle::TextFore || (indicator.sacHover.style == IndicatorStyle::ExplorerLink)) {
 								textFore = indicator.sacHover.fore;
 							}
 						} else {
