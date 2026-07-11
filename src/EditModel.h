@@ -46,7 +46,7 @@ struct ModelState : ViewState {
 	void RememberSelectionOntoStack(int index, Sci::Line topLine);
 	void RememberSelectionForRedoOntoStack(int index, const Selection &sel, Sci::Line topLine);
 	SelectionWithScroll SelectionFromStack(int index, UndoRedo history) const;
-	void TruncateUndo(int index) final;
+	virtual void TruncateUndo(int index) final;
 };
 
 using ModelStateShared = std::shared_ptr<ModelState>;
