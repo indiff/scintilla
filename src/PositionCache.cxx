@@ -295,7 +295,7 @@ Point LineLayout::PointFromPosition(int posInLine, int lineHeight, PointEnd pe) 
 	Point pt;
 	// In case of very long line put x at arbitrary large position
 	if (posInLine > maxLineLength) {
-		pt.x = positions.GetPosition(maxLineLength) - positions.GetPosition(LineStart(lines));
+		pt.x = positions[maxLineLength] - positions[LineStart(lines)];
 	}
 
 	for (int subLine = 0; subLine < lines; subLine++) {
