@@ -60,7 +60,6 @@ class XPositions {
 	// Expects reasonably consistent text throughout the line - a line with many text
 	// characters at one end and many representations at the other could have inadequate
 	// precision in middle, for example.
-	std::unique_ptr<XWidth[]> positions;
 	XYPOSITION characterWidthMean = 0.0;
 protected:
 	void SetSize(size_t size);
@@ -69,6 +68,7 @@ protected:
 	[[nodiscard]] XWidth GetValue(Sci::Position index) const noexcept;
 	void SetPosition(int index, XYPOSITION position) noexcept;
 public:
+	std::unique_ptr<XWidth[]> positions;
 	void SetValue(int index, XWidth width) const noexcept;	// Not logically const but required for use by BreakFinder
 	[[nodiscard]] XWidth *PositionsFor(int index) const noexcept;
 	[[nodiscard]] XYPOSITION GetPosition(Sci::Position index) const noexcept;
