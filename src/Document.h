@@ -95,6 +95,8 @@ class ForwardRange {
 	Sci::Position start = 0;
 	Sci::Position end = 0;
 public:
+	constexpr ForwardRange() noexcept = default;
+
 	constexpr ForwardRange(Sci::Position start_, Sci::Position end_) noexcept :
 		start(start_), end(end_) {
 		PLATFORM_ASSERT(start_ <= end_);
@@ -107,6 +109,14 @@ public:
 
 	explicit constexpr operator Range() const noexcept {
 		return { start, end };
+	}
+
+	bool operator==(const ForwardRange &other) const noexcept {
+		return (start == other.start) && (end == other.end);
+	}
+
+	[[nodiscard]] bool Empty() const noexcept {
+		return start == end;
 	}
 
 	[[nodiscard]] Sci::Position First() const noexcept {
@@ -376,6 +386,7 @@ public:
 	/// Can also be SC_CP_UTF8 to enable UTF-8 mode
 	int dbcsCodePage;
 	Scintilla::LineEndType lineEndBitSet;
+	static constexpr int standardTabSize = 8;
 	int tabInChars;
 	int indentInChars;
 	int actualIndentInChars;
@@ -519,6 +530,7 @@ public:
 
 	void DelChar(Sci::Position pos);
 	void DelCharBack(Sci::Position pos);
+	Sci::Position BackSpace(Sci::Position pos, bool allowLineStartDeletion);
 
 	char CharAt(Sci::Position position) const noexcept { return cb.CharAt(position); }
 	void SCI_METHOD GetCharRange(char *buffer, Sci_Position position, Sci_Position lengthRetrieve) const override {
@@ -668,14 +680,8 @@ public:
 	UndoGroup &operator=(UndoGroup &&) = delete;
 	~UndoGroup() {
 		if (groupNeeded) {
-			// EndUndoAction can throw as it allocates but throw in destructor is fatal.
-			// To fix this UndoHistory should allocate any memory needed by EndUndoAction
-			// beforehand or change EndUndoAction to not require allocation.
 			pdoc->EndUndoAction();
 		}
-	}
-	[[nodiscard]] bool Needed() const noexcept {
-		return groupNeeded;
 	}
 };
 

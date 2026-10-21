@@ -660,10 +660,15 @@ Point EditView::LocationFromPosition(Surface *surface, const EditModel &model, S
 		posLineStart = model.pdoc->LineStart(lineDoc);
 	}
 	const Sci::Line lineVisible = model.pcs->DisplayFromDoc(lineDoc);
+	const XYPOSITION lineVisibleY = static_cast<XYPOSITION>((lineVisible - topLine) * vs.lineHeight);
+	const int posInLine = static_cast<int>(pos.Position() - posLineStart);
+	if ((posInLine == 0) && (pos.VirtualSpace() == 0)) {
+		// Simple case at start of document line avoids expensive LayoutLine.
+		return Point(vs.textStart - model.xOffset, lineVisibleY);
+	}
 	std::shared_ptr<LineLayout> ll = RetrieveLineLayout(lineDoc, model);
 	if (surface && ll) {
 		LayoutLine(model, surface, vs, ll.get(), model.wrapWidth);
-		const int posInLine = static_cast<int>(pos.Position() - posLineStart);
 		pt = ll->PointFromPosition(posInLine, vs.lineHeight, pe);
 		pt.x += vs.textStart - model.xOffset;
 
@@ -687,7 +692,7 @@ Point EditView::LocationFromPosition(Surface *surface, const EditModel &model, S
 				pt.y = static_cast<XYPOSITION>(subLine*vs.lineHeight);
 			}
 		}
-		pt.y += static_cast<XYPOSITION>((lineVisible - topLine) * vs.lineHeight);
+		pt.y += lineVisibleY;
 		pt.x += pos.VirtualSpaceWidth(vs.styles[ll->EndLineStyle()].spaceWidth);
 	}
 	return pt;
@@ -804,11 +809,15 @@ SelectionPosition EditView::SPositionFromLineX(Surface *surface, const EditModel
 Sci::Line EditView::DisplayFromPosition(Surface *surface, const EditModel &model, Sci::Position pos, const ViewStyle &vs) {
 	const Sci::Line lineDoc = model.pdoc->SciLineFromPosition(pos);
 	Sci::Line lineDisplay = model.pcs->DisplayFromDoc(lineDoc);
+	const Sci::Position posLineStart = model.pdoc->LineStart(lineDoc);
+	const Sci::Position posInLine = pos - posLineStart;
+	if (posInLine == 0) {
+		// Avoid expensive LayoutLine since first position on line is always on first display line.
+		return lineDisplay;
+	}
 	std::shared_ptr<LineLayout> ll = RetrieveLineLayout(lineDoc, model);
 	if (surface && ll) {
 		LayoutLine(model, surface, vs, ll.get(), model.wrapWidth);
-		const Sci::Position posLineStart = model.pdoc->LineStart(lineDoc);
-		const Sci::Position posInLine = pos - posLineStart;
 		lineDisplay--; // To make up for first increment ahead.
 		for (int subLine = 0; subLine < ll->lines; subLine++) {
 			if (posInLine >= ll->LineStart(subLine)) {
@@ -1025,7 +1034,6 @@ void EditView::DrawEOL(Surface *surface, const EditModel &model, const ViewStyle
 	Sci::Line line, int xStart, PRectangle rcLine, int subLine, Sci::Position lineEnd, XYPOSITION subLineStart, ColourOptional background) {
 
 	const Sci::Position posLineStart = model.pdoc->LineStart(line);
-	PRectangle rcSegment = rcLine;
 
 	const bool lastSubLine = subLine == (ll->lines - 1);
 	const Sci::Position virtualSpaces = lastSubLine ? model.VirtualSpaceForLine(line) : 0;
@@ -1035,16 +1043,17 @@ void EditView::DrawEOL(Surface *surface, const EditModel &model, const ViewStyle
 
 	// Fill the virtual space and show selections within it
 	if (virtualSpace > 0.0f) {
-		rcSegment.left = xEol + xStart;
-		rcSegment.right = xEol + xStart + virtualSpace;
+		const Interval intervalVirtual = Interval::FromLeftAndWidth(xEol + xStart, virtualSpace);
 		const ColourRGBA backgroundFill = background.value_or(vsDraw.styles[ll->LastStyle()].back);
-		surface->FillRectangleAligned(rcSegment, backgroundFill);
+		surface->FillRectangleAligned(rcLine.WithHorizontalBounds(intervalVirtual), backgroundFill);
 		if (vsDraw.selection.visible && (vsDraw.selection.layer == Layer::Base)) {
-			const SelectionSegment virtualSpaceRange(SelectionPosition(model.pdoc->LineEnd(line)),
-				SelectionPosition(model.pdoc->LineEnd(line), virtualSpaces));
+			const Sci::Position posLineEnd = posLineStart + ll->numCharsBeforeEOL;
+			const SelectionSegment virtualSpaceRange(SelectionPosition(posLineEnd),
+				SelectionPosition(posLineEnd, virtualSpaces));
 			for (size_t r = 0; r<model.sel.Count(); r++) {
 				const SelectionSegment portion = model.sel.Range(r).Intersect(virtualSpaceRange);
 				if (!portion.Empty()) {
+					PRectangle rcSegment = rcLine;
 					rcSegment.left = xStart + ll->GetPosition(portion.start.Position() - posLineStart) -
 						subLineStart + portion.start.VirtualSpaceWidth(spaceWidth);
 					rcSegment.right = xStart + ll->GetPosition(portion.end.Position() - posLineStart) -
@@ -1693,7 +1702,7 @@ void DrawBackground(Surface *surface, const EditModel &model, const ViewStyle &v
 			InSelection inSelection = vsDraw.selection.visible ? model.sel.CharacterInSelection(iDoc) : InSelection::inNone;
 			if (FlagSet(vsDraw.caret.style, CaretStyle::Curses) && (inSelection == InSelection::inMain))
 				inSelection = CharacterInCursesSelection(iDoc, model, vsDraw);
-			const bool inHotspot = model.hotspot.Valid() && model.hotspot.ContainsCharacter(iDoc);
+			const bool inHotspot = model.hotspot.ContainsCharacter(iDoc);
 			ColourRGBA textBack = TextBackground(model, vsDraw, ll, background, inSelection,
 				inHotspot, ll->styles[i], i);
 			if (ts.representation) {
@@ -2167,7 +2176,7 @@ void EditView::DrawForeground(Surface *surface, const EditModel &model, const Vi
 			ColourRGBA textFore = vsDraw.styles[styleMain].fore;
 			const Font *textFont = vsDraw.styles[styleMain].font.get();
 			// Hot-spot foreground
-			const bool inHotspot = model.hotspot.Valid() && model.hotspot.ContainsCharacter(iDoc);
+			const bool inHotspot = model.hotspot.ContainsCharacter(iDoc);
 			if (inHotspot) {
 				if (const ColourOptional colourHotSpot = vsDraw.ElementColour(Element::HotSpotActive)) {
 					textFore = *colourHotSpot;
@@ -2589,8 +2598,8 @@ void EditView::PaintText(Surface *surfaceWindow, const EditModel &model, const V
 					rcLine.top = static_cast<XYPOSITION>(ypos);
 					rcLine.bottom = static_cast<XYPOSITION>(ypos + vsDraw.lineHeight);
 
-					const ForwardRange rangeLine(model.pdoc->LineStart(lineDoc),
-						model.pdoc->LineStart(lineDoc) + ll->numCharsInLine);
+					const Sci::Position posLineStart = model.pdoc->LineStart(lineDoc);
+					const ForwardRange rangeLine(posLineStart, posLineStart + ll->numCharsInLine);
 
 					// Highlight the current braces if any
 					ll->SetBracesHighlight(rangeLine, model.braces, static_cast<char>(model.bracesMatchStyle),

@@ -81,7 +81,19 @@ XWidth XPositions::GetValue(Sci::Position index) const noexcept {
 }
 
 void XPositions::SetPosition(int index, XYPOSITION position) noexcept {
-	positions[index] = static_cast<XWidth>(position - (characterWidthMean * index));
+	// When position is an integer, inaccuracy in the scaling then reverse scaling may produce
+	// a value that is close to but just below the original integer.
+	// Some text drawing APIs, like Win32 GDI will truncate which is a significant difference.
+	// If this will occur, force the scaled value to the nearest float above.
+	const XYPOSITION expected = characterWidthMean * index;
+	const XWidth scaled = static_cast<XWidth>(position - expected);
+	const XYPOSITION scaledBack = scaled + expected;
+	if ((position > scaledBack) && (std::floor(position) > std::floor(scaledBack))) {
+		// Nudge scaled larger
+		positions[index] = nextafterf(scaled, scaled + 1.0f);
+	} else {
+		positions[index] = scaled;
+	}
 }
 
 void XPositions::SetValue(int index, XWidth width) const noexcept {
@@ -426,7 +438,9 @@ void LineLayout::CalculatePositions(Sci::Line line, const TabStopProvider &tsp, 
 	}
 	SetPosition(numCharsInLine, xPosition);
 
-	const bool lastSegItalics = (chars[numCharsBeforeEOL - 1] != ' ') && vstyle.styles[styles[numCharsBeforeEOL - 1]].italic;
+	const bool lastSegItalics = (numCharsBeforeEOL > 0) &&
+		(chars[numCharsBeforeEOL - 1] != ' ') &&
+		vstyle.styles[styles[numCharsBeforeEOL - 1]].italic;
 
 	// Small hack to make lines that end with italics not cut off the edge of the last character
 	if (lastSegItalics) {
@@ -1180,7 +1194,7 @@ void PositionCache::MeasureWidths(Surface *surface, const ViewStyle &vstyle, uns
 		}
 	}
 
-	constexpr size_t maxCachedLength = 30;
+	constexpr size_t maxCachedLength = 40;
 	size_t probe = pces.size();	// Out of bounds
 	if ((!pces.empty()) && (sv.length() < maxCachedLength)) {
 		// Only store short strings in the cache so it doesn't churn with
