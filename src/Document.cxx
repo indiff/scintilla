@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <new>
 #include <utility>
+#include <compare>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -2869,7 +2870,7 @@ void SCI_METHOD Document::DecorationFillRange(Sci_Position position, int value, 
 bool Document::AddWatcher(DocWatcher *watcher, void *userData) {
 	const WatcherWithUserData wwud(watcher, userData);
 	const std::vector<WatcherWithUserData>::iterator it =
-		std::find(watchers.begin(), watchers.end(), wwud);
+		std::ranges::find(watchers, wwud);
 	if (it != watchers.end())
 		return false;
 	watchers.push_back(wwud);
@@ -2881,7 +2882,7 @@ bool Document::RemoveWatcher(DocWatcher *watcher, void *userData) noexcept {
 		// This can never fail as WatcherWithUserData constructor and == are noexcept
 		// but std::find is not noexcept.
 		const std::vector<WatcherWithUserData>::iterator it =
-			std::find(watchers.begin(), watchers.end(), WatcherWithUserData(watcher, userData));
+			std::ranges::find(watchers, WatcherWithUserData(watcher, userData));
 		if (it != watchers.end()) {
 			watchers.erase(it);
 			return true;
@@ -3203,12 +3204,7 @@ public:
 		position--;
 		return *this;
 	}
-	bool operator==(const ByteIterator &other) const noexcept {
-		return doc == other.doc && position == other.position;
-	}
-	bool operator!=(const ByteIterator &other) const noexcept {
-		return doc != other.doc || position != other.position;
-	}
+	constexpr bool operator==(const ByteIterator &other) const noexcept = default;
 	[[nodiscard]] Sci::Position Pos() const noexcept {
 		return position;
 	}
@@ -3292,17 +3288,11 @@ public:
 		}
 		return *this;
 	}
-	bool operator==(const UTF8Iterator &other) const noexcept {
+	constexpr bool operator==(const UTF8Iterator &other) const noexcept {
 		// Only test the determining fields, not the character widths and values derived from this
 		return doc == other.doc &&
 			position == other.position &&
 			characterIndex == other.characterIndex;
-	}
-	bool operator!=(const UTF8Iterator &other) const noexcept {
-		// Only test the determining fields, not the character widths and values derived from this
-		return doc != other.doc ||
-			position != other.position ||
-			characterIndex != other.characterIndex;
 	}
 	[[nodiscard]] Sci::Position Pos() const noexcept {
 		return position;
@@ -3361,12 +3351,7 @@ public:
 		position = doc->NextPosition(position, -1);
 		return *this;
 	}
-	bool operator==(const UTF8Iterator &other) const noexcept {
-		return doc == other.doc && position == other.position;
-	}
-	bool operator!=(const UTF8Iterator &other) const noexcept {
-		return doc != other.doc || position != other.position;
-	}
+	constexpr bool operator==(const UTF8Iterator &other) const noexcept = default;
 	Sci::Position Pos() const noexcept {
 		return position;
 	}
