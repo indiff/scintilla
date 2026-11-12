@@ -112,7 +112,7 @@ private:
 	void FixSelectionForClipboard() {
 		// To avoid truncating the contents of the clipboard when pasted where the
 		// clipboard contains NUL characters, replace NUL characters by spaces.
-		std::replace(s.begin(), s.end(), '\0', ' ');
+		std::ranges::replace(s, '\0', ' ');
 	}
 };
 
@@ -401,9 +401,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 		int xOffset;
 		Sci::Line topLine;
 		XYScrollPosition(int xOffset_, Sci::Line topLine_) noexcept : xOffset(xOffset_), topLine(topLine_) {}
-		bool operator==(const XYScrollPosition &other) const noexcept {
-			return (xOffset == other.xOffset) && (topLine == other.topLine);
-		}
+		constexpr bool operator==(const XYScrollPosition &other) const noexcept = default;
 	};
 	XYScrollPosition XYScrollToMakeVisible(const SelectionRange &range,
 		const XYScrollOptions options, CaretPolicies policies);
@@ -441,7 +439,7 @@ protected:	// ScintillaBase subclass needs access to much of Editor
 	void ChangeSize();
 
 	void FilterSelections();
-	SelectionPosition RealizeVirtualSpace(const SelectionPosition &position);
+	SelectionPosition RealizeVirtualSpace(SelectionPosition position);
 	void AddChar(char ch);
 	virtual void InsertCharacter(std::string_view sv, Scintilla::CharacterSource charSource);
 	void ClearSelectionRange(SelectionRange &range);

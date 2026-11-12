@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <compare>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -290,7 +291,7 @@ void TentativeUndo(UndoHistory &uh) noexcept {
 TEST_CASE("ScaledVector") {
 
 	ScaledVector sv;
-	
+
 	SECTION("ScalingUp") {
 		sv.ReSize(1);
 		REQUIRE(sv.SizeInBytes() == 1);
@@ -1478,7 +1479,7 @@ TEST_CASE("CellBufferWithChangeHistory") {
 			{ {2, 2}, {4, 2} } };
 		REQUIRE(HistoryOf(cb) == history4s);
 
-		UndoBlock(cb);	// Reinsert "!", 
+		UndoBlock(cb);	// Reinsert "!",
 		const History history3s{ { {1, 3, 4}, {4, 2, 1}, {6, 1, 4}, {7, 1, 1} },
 			{ {5, 2} } };
 		REQUIRE(HistoryOf(cb) == history3s);

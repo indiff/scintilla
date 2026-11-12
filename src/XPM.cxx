@@ -12,6 +12,7 @@
 
 #include <stdexcept>
 #include <utility>
+#include <compare>
 #include <string_view>
 #include <vector>
 #include <map>
@@ -67,9 +68,9 @@ unsigned int ValueOfHex(const char ch) noexcept {
 }
 
 ColourRGBA ColourFromHex(const char *val) noexcept {
-	const unsigned int r = ValueOfHex((val[0]) * 16) + ValueOfHex(val[1]);
-	const unsigned int g = ValueOfHex((val[2]) * 16) + ValueOfHex(val[3]);
-	const unsigned int b = ValueOfHex((val[4]) * 16) + ValueOfHex(val[5]);
+	const unsigned int r = (ValueOfHex(val[0]) * 16) + ValueOfHex(val[1]);
+	const unsigned int g = (ValueOfHex(val[2]) * 16) + ValueOfHex(val[3]);
+	const unsigned int b = (ValueOfHex(val[4]) * 16) + ValueOfHex(val[5]);
 	return {r, g, b};
 }
 
